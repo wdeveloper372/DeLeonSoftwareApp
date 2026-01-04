@@ -6,6 +6,8 @@ class EstimateApp(ctk.CTk):
         super().__init__()
         initialize_db() # Ensure the database file exists on startup
 
+        self.iconbitmap("logo.ico")
+
         self.title("De Leon Auto Glass Estimate App")
         self.geometry("500x600")
 
