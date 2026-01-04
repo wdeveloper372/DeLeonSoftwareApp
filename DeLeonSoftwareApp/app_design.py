@@ -1,16 +1,16 @@
 import customtkinter as ctk
-from calculator import calculate_estimate
-import database_cloud as db # Ensure you have your Supabase setup here
+from logic import calculate_estimate
+import database_cloud as db # The cloud sync file we created earlier
 
-class EstimateApp(ctk.CTk):
+class App(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("Company Estimator")
-        self.geometry("500x700")
+        self.title("Company Estimator v2.0")
+        self.geometry("400x600")
 
-        # --- INPUTS ---
+        # UI Input Fields
         self.client_name = ctk.CTkEntry(self, placeholder_text="Client Name")
-        self.client_name.pack(pady=5)
+        self.client_name.pack(pady=10)
 
         self.parts_entry = ctk.CTkEntry(self, placeholder_text="Parts Amount ($)")
         self.parts_entry.pack(pady=5)
@@ -21,54 +21,33 @@ class EstimateApp(ctk.CTk):
         self.calib_entry = ctk.CTkEntry(self, placeholder_text="Calibration ($)")
         self.calib_entry.pack(pady=5)
 
-        self.kit_checkbox = ctk.CTkCheckBox(self, text="Needs Kit?")
-        self.kit_checkbox.pack(pady=5)
+        self.kit_check = ctk.CTkCheckBox(self, text="Include Kit ($25 + Tax)")
+        self.kit_check.pack(pady=10)
 
-        # --- ACTIONS ---
-        self.calc_btn = ctk.CTkButton(self, text="Calculate & Save", command=self.run_calc)
-        self.calc_btn.pack(pady=10)
+        # Button to trigger your logic
+        self.calc_button = ctk.CTkButton(self, text="Calculate & Sync", command=self.process_data)
+        self.calc_button.pack(pady=20)
 
-        # --- RESULTS DISPLAY ---
-        self.res_label = ctk.CTkLabel(self, text="Total: $0.00", font=("Arial", 20, "bold"))
-        self.res_label.pack(pady=10)
+        self.result_label = ctk.CTkLabel(self, text="Total: $0.00", font=("Arial", 20, "bold"))
+        self.result_label.pack(pady=10)
 
-        # --- SEARCH AREA ---
-        self.search_entry = ctk.CTkEntry(self, placeholder_text="Search Past Clients...")
-        self.search_entry.pack(pady=(20, 0))
-        self.search_btn = ctk.CTkButton(self, text="Search History", command=self.search_history)
-        self.search_btn.pack(pady=5)
+    def process_data(self):
+        # 1. Run your logic using the values from the screen
+        results = calculate_estimate(
+            self.parts_entry.get(),
+            self.kit_check.get(),
+            self.labor_entry.get(),
+            self.calib_entry.get()
+        )
 
-        self.history_frame = ctk.CTkScrollableFrame(self, height=200)
-        self.history_frame.pack(fill="x", padx=20, pady=10)
+        # 2. Update the Screen
+        self.result_label.configure(text=f"Total: ${results['total']}")
 
-    def run_calc(self):
-        try:
-            # Run your logic
-            data = calculate_estimate(
-                self.parts_entry.get(),
-                self.kit_checkbox.get(),
-                self.labor_entry.get(),
-                self.calib_entry.get()
-            )
-            
-            # Update UI
-            self.res_label.configure(text=f"Total: ${data['total']}")
-            
-            # Save to Cloud
-            db.save_to_cloud(self.client_name.get(), data['total'])
-            
-        except ValueError:
-            self.res_label.configure(text="Error: Enter valid numbers")
-
-    def search_history(self):
-        # Clear old results
-        for widget in self.history_frame.winfo_children(): widget.destroy()
-        
-        results = db.search_cloud(self.search_entry.get())
-        for item in results:
-            text = f"{item['client']} | Total: ${item['total']}"
-            ctk.CTkLabel(self.history_frame, text=text).pack()
+        # 3. Save to Cloud (Supabase)
+        # This makes it instantly available on mobile!
+        db.save_to_cloud(self.client_name.get(), results['total'])
+        print("Synced to cloud successfully.")
 
 if __name__ == "__main__":
-    app = EstimateApp()
+    app = App()
     app.mainloop()
